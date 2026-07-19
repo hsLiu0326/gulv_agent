@@ -16,7 +16,12 @@ export const useUserStore = defineStore('user', {
       const response = await api.auth.login(credentials)
       this.token = response.access_token
       localStorage.setItem('token', this.token)
-      await this.fetchUserInfo()
+      // 登录成功后获取用户信息，失败不影响登录流程
+      try {
+        await this.fetchUserInfo()
+      } catch (error) {
+        console.warn('获取用户信息失败，将在进入控制台后重试:', error)
+      }
     },
 
     async fetchUserInfo() {

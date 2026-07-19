@@ -11,8 +11,8 @@ from app.core.database import get_db
 from app.models.user import User
 
 
-# 密码加密上下文
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 密码加密上下文 - 同时支持bcrypt和pbkdf2_sha256
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto", default="pbkdf2_sha256")
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")

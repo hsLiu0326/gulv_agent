@@ -12,7 +12,7 @@
         <el-form-item prop="username">
           <el-input
             v-model="loginForm.username"
-            placeholder="用户名"
+            placeholder="请输入用户名"
             prefix-icon="User"
             size="large"
           />
@@ -21,7 +21,7 @@
           <el-input
             v-model="loginForm.password"
             type="password"
-            placeholder="密码"
+            placeholder="请输入密码"
             prefix-icon="Lock"
             size="large"
             show-password
@@ -73,14 +73,19 @@ const rules = {
 }
 
 const handleLogin = async () => {
-  await formRef.value.validate()
+  const isValid = await formRef.value.validate().catch(() => false)
+  if (!isValid) {
+    return
+  }
+
   loading.value = true
   try {
-    await userStore.login(loginForm)
+    await userStore.login({ ...loginForm })
     ElMessage.success('登录成功')
     router.push('/')
   } catch (error) {
-    console.error('登录失败:', error)
+    loginForm.password = ''
+    ElMessage.error('用户名或密码错误，请重试')
   } finally {
     loading.value = false
   }

@@ -10,16 +10,16 @@
 
       <el-form ref="formRef" :model="registerForm" :rules="rules" size="large">
         <el-form-item prop="username">
-          <el-input v-model="registerForm.username" placeholder="用户名" prefix-icon="User" />
+          <el-input v-model="registerForm.username" placeholder="请输入用户名" prefix-icon="User" />
         </el-form-item>
         <el-form-item prop="email">
-          <el-input v-model="registerForm.email" placeholder="邮箱" prefix-icon="Message" />
+          <el-input v-model="registerForm.email" placeholder="请输入邮箱" prefix-icon="Message" />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="registerForm.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
+          <el-input v-model="registerForm.password" type="password" placeholder="请输入密码" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item prop="confirmPassword">
-          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" show-password />
+          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="请确认密码" prefix-icon="Lock" show-password />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" size="large" class="w-full" :loading="loading" @click="handleRegister">
@@ -69,7 +69,11 @@ const rules = {
 }
 
 const handleRegister = async () => {
-  await formRef.value.validate()
+  const isValid = await formRef.value.validate().catch(() => false)
+  if (!isValid) {
+    return
+  }
+
   loading.value = true
   try {
     await api.auth.register({
@@ -80,7 +84,14 @@ const handleRegister = async () => {
     ElMessage.success('注册成功，请登录')
     router.push('/login')
   } catch (error) {
-    console.error('注册失败:', error)
+    const detail = error.response?.data?.detail
+    if (detail === '用户名已存在') {
+      ElMessage.error('该用户名已被注册，请选择其他用户名')
+    } else if (detail === '邮箱已被注册') {
+      ElMessage.error('该邮箱已被注册，请使用其他邮箱')
+    } else {
+      ElMessage.error('注册失败，请重试')
+    }
   } finally {
     loading.value = false
   }

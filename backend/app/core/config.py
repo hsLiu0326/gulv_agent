@@ -4,31 +4,42 @@ from typing import Optional
 import os
 
 
+def load_env_file(env_path=None):
+    if env_path is None:
+        # \u4f18\u5148\u4f7f\u7528 backend/.env\uff08\u76f8\u5bf9\u4e8e\u672c\u9879\u76ee\uff09
+        env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+        env_path = os.path.abspath(env_path)
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.replace("\u200b", "").strip()
+                        os.environ[key] = value
+
+
+load_env_file()
+
+
 class Settings(BaseSettings):
     """应用配置类"""
-    # 应用配置
     APP_NAME: str = "AI营养师Agent"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
-    # 数据库配置
     DATABASE_URL: str = "mysql+pymysql://root:123456@localhost:3306/ai_nutritionist"
 
-    # JWT配置
     SECRET_KEY: str = "your-secret-key-here-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # OpenAI配置
     OPENAI_API_KEY: str = "sk-your-openai-api-key"
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
-    # ChromaDB配置
     CHROMA_PERSIST_DIR: str = "./chroma_data"
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()
