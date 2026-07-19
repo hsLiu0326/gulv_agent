@@ -41,5 +41,12 @@ class Settings(BaseSettings):
 
     CHROMA_PERSIST_DIR: str = "./chroma_data"
 
+    # CORS 允许的域名，逗号分隔
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+
+    # 分页默认值
+    PAGE_SIZE_DEFAULT: int = 20
+    PAGE_SIZE_MAX: int = 100
+
 
 settings = Settings()

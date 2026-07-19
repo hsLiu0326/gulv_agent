@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.dependencies import pagination
 from app.models.user import User
 from app.models.recipe import Recipe
 from app.schemas.recipe import RecipeCreate, RecipeResponse, RecipeGenerate
@@ -20,7 +21,6 @@ def generate_recipe(
     current_user: User = Depends(get_current_user)
 ):
     """AI生成个性化食谱"""
-    # 获取健康报告
     from app.models.health_report import HealthReport
     health_report = db.query(HealthReport).filter(
         HealthReport.id == generate_data.health_report_id,
@@ -30,13 +30,11 @@ def generate_recipe(
     if not health_report:
         raise HTTPException(status_code=404, detail="健康报告不存在")
 
-    # 获取用户偏好
     from app.models.recipe import TastePreference
     preferences = db.query(TastePreference).filter(
         TastePreference.user_id == current_user.id
     ).all()
 
-    # 运行Agent工作流
     workflow = NutritionAgentWorkflow()
     result = workflow.run(
         health_report=health_report,
@@ -44,7 +42,6 @@ def generate_recipe(
         user_info=current_user
     )
 
-    # 保存食谱
     recipe = Recipe(
         user_id=current_user.id,
         health_report_id=health_report.id,
@@ -63,12 +60,13 @@ def generate_recipe(
 @router.get("/", response_model=List[RecipeResponse])
 def get_recipes(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    page: dict = Depends(pagination),
 ):
-    """获取用户的食谱列表"""
+    """获取用户的食谱列表（分页）"""
     return db.query(Recipe).filter(
         Recipe.user_id == current_user.id
-    ).order_by(Recipe.created_at.desc()).all()
+    ).order_by(Recipe.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.dependencies import pagination
 from app.models.user import User
 from app.models.recipe import TastePreference
 from app.schemas.preference import PreferenceCreate, PreferenceResponse
@@ -30,11 +31,13 @@ def create_preference(
 @router.get("/", response_model=List[PreferenceResponse])
 def get_preferences(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    page: dict = Depends(pagination),
 ):
+    """获取用户偏好列表（分页）"""
     return db.query(TastePreference).filter(
         TastePreference.user_id == current_user.id
-    ).order_by(TastePreference.created_at.desc()).all()
+    ).order_by(TastePreference.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.delete("/{preference_id}")

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.dependencies import pagination
 from app.models.user import User
 from app.models.recipe import DailyMenu, Meal, Dish, MealType
 from app.schemas.daily_menu import DailyMenuCreate, DailyMenuResponse
@@ -78,11 +79,13 @@ def create_daily_menu(
 @router.get("/", response_model=List[DailyMenuResponse])
 def get_daily_menus(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    page: dict = Depends(pagination),
 ):
+    """获取每日菜单列表（分页）"""
     return db.query(DailyMenu).filter(
         DailyMenu.user_id == current_user.id
-    ).order_by(DailyMenu.menu_date.desc()).all()
+    ).order_by(DailyMenu.menu_date.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.get("/{menu_id}", response_model=DailyMenuResponse)
