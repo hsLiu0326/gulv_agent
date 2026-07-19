@@ -7,3 +7,4 @@ build/
 aa/
 chroma_data/
 *.pyc
+.playwright-cli/

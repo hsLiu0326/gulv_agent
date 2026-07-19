@@ -14,7 +14,16 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes, req) => {
+            // 把后端返回的重定向地址改回代理地址，避免跨域丢 Authorization
+            const location = proxyRes.headers['location']
+            if (location && proxyRes.statusCode >= 300 && proxyRes.statusCode < 400) {
+              proxyRes.headers['location'] = location.replace('http://localhost:8000', '')
+            }
+          })
+        }
       }
     }
   }

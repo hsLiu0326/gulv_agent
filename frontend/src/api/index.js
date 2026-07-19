@@ -60,24 +60,24 @@ const api = {
     me: () => apiClient.get('/users/me')
   },
   healthReports: {
-    list: () => apiClient.get('/health-reports'),
+    list: () => apiClient.get('/health-reports/'),
     get: (id) => apiClient.get(`/health-reports/${id}`),
-    create: (data) => apiClient.post('/health-reports', data)
+    create: (data) => apiClient.post('/health-reports/', data)
   },
   recipes: {
-    list: () => apiClient.get('/recipes'),
+    list: () => apiClient.get('/recipes/'),
     get: (id) => apiClient.get(`/recipes/${id}`),
     generate: (data) => apiClient.post('/recipes/generate', data)
   },
   preferences: {
-    list: () => apiClient.get('/preferences'),
-    create: (data) => apiClient.post('/preferences', data),
+    list: () => apiClient.get('/preferences/'),
+    create: (data) => apiClient.post('/preferences/', data),
     delete: (id) => apiClient.delete(`/preferences/${id}`)
   },
   dailyMenus: {
-    list: () => apiClient.get('/daily-menus'),
+    list: () => apiClient.get('/daily-menus/'),
     get: (id) => apiClient.get(`/daily-menus/${id}`),
-    create: (data) => apiClient.post('/daily-menus', data),
+    create: (data) => apiClient.post('/daily-menus/', data),
     delete: (id) => apiClient.delete(`/daily-menus/${id}`)
   },
   knowledge: {
