@@ -1,11 +1,36 @@
 """AI Agent工作流模块"""
-from typing import Dict, Any, List
+import json
+from typing import Any, Dict, Iterator, List, TypedDict
+
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
+
+from app.agents.prompts import (
+    HEALTH_ANALYSIS_SYSTEM,
+    HEALTH_ANALYSIS_USER_TEMPLATE,
+    NUTRITION_PLANNING_SYSTEM,
+    NUTRITION_PLANNING_USER_TEMPLATE,
+    QUALITY_REVIEW_SYSTEM,
+    QUALITY_REVIEW_USER_TEMPLATE,
+    RECIPE_GENERATION_SYSTEM,
+    RECIPE_GENERATION_USER_TEMPLATE,
+)
 from app.core.config import settings
 from app.services.knowledge_base import KnowledgeBase
-import json
+
+
+class AgentState(TypedDict, total=False):
+    """LangGraph 工作流状态"""
+    health_report: Any
+    preferences: Any
+    user_info: Any
+    health_analysis: str
+    nutrition_plan: str
+    recipe: Dict[str, Any]
+    review_result: str
+    review_passed: bool
+    iteration_count: int
 
 
 class NutritionAgentWorkflow:
@@ -13,9 +38,9 @@ class NutritionAgentWorkflow:
 
     def __init__(self):
         self.llm = ChatOpenAI(
-            model="gpt-4o-mini",
-            openai_api_key=settings.OPENAI_API_KEY,
-            openai_api_base=settings.OPENAI_BASE_URL,
+            model=settings.LLM_MODEL,
+            api_key=settings.OPENAI_API_KEY,
+            base_url=settings.OPENAI_BASE_URL,
             temperature=0.7
         )
         self.knowledge_base = KnowledgeBase()
@@ -23,22 +48,23 @@ class NutritionAgentWorkflow:
 
     def _build_workflow(self) -> StateGraph:
         """构建Agent工作流"""
-        workflow = StateGraph(Dict[str, Any])
+        workflow = StateGraph(AgentState)
 
-        workflow.add_node("health_analysis", self._health_analysis_agent)
-        workflow.add_node("nutrition_planning", self._nutrition_planning_agent)
-        workflow.add_node("recipe_generation", self._recipe_generation_agent)
-        workflow.add_node("quality_review", self._quality_review_agent)
+        # 节点名需与状态键（health_analysis 等）区分，langgraph 0.3 起强制
+        workflow.add_node("analyze_health", self._health_analysis_agent)
+        workflow.add_node("plan_nutrition", self._nutrition_planning_agent)
+        workflow.add_node("generate_recipe", self._recipe_generation_agent)
+        workflow.add_node("review_quality", self._quality_review_agent)
 
-        workflow.set_entry_point("health_analysis")
+        workflow.set_entry_point("analyze_health")
 
-        workflow.add_edge("health_analysis", "nutrition_planning")
-        workflow.add_edge("nutrition_planning", "recipe_generation")
-        workflow.add_edge("recipe_generation", "quality_review")
+        workflow.add_edge("analyze_health", "plan_nutrition")
+        workflow.add_edge("plan_nutrition", "generate_recipe")
+        workflow.add_edge("generate_recipe", "review_quality")
         workflow.add_conditional_edges(
-            "quality_review",
+            "review_quality",
             self._should_revise,
-            {"revise": "recipe_generation", "complete": END}
+            {"revise": "generate_recipe", "complete": END}
         )
 
         return workflow.compile()
@@ -81,12 +107,15 @@ class NutritionAgentWorkflow:
         user_info = state.get("user_info")
         user_info_str = self._format_user_info(user_info)
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一位专业的健康分析师。请根据体检报告分析用户的健康状况，识别潜在的健康问题，并给出健康评估。"),
-            ("user", f"用户基本信息：\n{user_info_str}\n\n体检报告内容：\n{health_report.report_content if health_report else '无'}")
-        ])
+        messages = [
+            SystemMessage(content=HEALTH_ANALYSIS_SYSTEM),
+            HumanMessage(content=HEALTH_ANALYSIS_USER_TEMPLATE.format(
+                user_info=user_info_str,
+                report_content=health_report.report_content if health_report else "无",
+            )),
+        ]
 
-        response = self.llm.invoke(prompt.format_messages())
+        response = self.llm.invoke(messages)
         state["health_analysis"] = response.content
         state["iteration_count"] = 0
         return state
@@ -103,12 +132,17 @@ class NutritionAgentWorkflow:
         knowledge = self.knowledge_base.search(health_analysis, n_results=3)
         knowledge_text = "\n".join([k["content"] for k in knowledge])
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一位营养规划专家。请根据健康分析结果、用户基本信息和营养学知识，制定个性化的营养方案，包括每日热量摄入建议、营养素比例、饮食禁忌等。"),
-            ("user", f"用户基本信息：\n{user_info_str}\n\n健康分析：\n{health_analysis}\n\n相关营养知识：\n{knowledge_text}\n\n用户口味偏好：\n{preferences_str}")
-        ])
+        messages = [
+            SystemMessage(content=NUTRITION_PLANNING_SYSTEM),
+            HumanMessage(content=NUTRITION_PLANNING_USER_TEMPLATE.format(
+                user_info=user_info_str,
+                health_analysis=health_analysis,
+                knowledge=knowledge_text,
+                preferences=preferences_str,
+            )),
+        ]
 
-        response = self.llm.invoke(prompt.format_messages())
+        response = self.llm.invoke(messages)
         state["nutrition_plan"] = response.content
         return state
 
@@ -117,31 +151,39 @@ class NutritionAgentWorkflow:
         nutrition_plan = state.get("nutrition_plan", "")
         preferences = state.get("preferences", [])
         preferences_str = self._format_preferences(preferences)
+        messages = self._recipe_messages(nutrition_plan, preferences_str)
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一位专业厨师和营养师。请根据营养方案生成详细的食谱，包括早餐、午餐、晚餐和加餐。请以JSON格式输出，包含name、description、nutrition_info和total_calories字段。nutrition_info应包含calories、protein、carbs、fat的具体数值。"),
-            ("user", f"营养方案：\n{nutrition_plan}\n\n用户口味偏好：\n{preferences_str}")
-        ])
+        response = self.llm.invoke(messages)
+        state["recipe"] = self._parse_recipe_text(response.content)
+        return state
 
-        response = self.llm.invoke(prompt.format_messages())
+    def _recipe_messages(self, nutrition_plan: str, preferences_str: str) -> List[Dict]:
+        """构建食谱生成提示词（普通调用与流式调用共用）"""
+        return [
+            SystemMessage(content=RECIPE_GENERATION_SYSTEM),
+            HumanMessage(content=RECIPE_GENERATION_USER_TEMPLATE.format(
+                nutrition_plan=nutrition_plan,
+                preferences=preferences_str,
+            )),
+        ]
 
+    def _parse_recipe_text(self, text: str) -> Dict[str, Any]:
+        """从 LLM 输出中解析食谱 JSON，失败时使用兜底值"""
         try:
-            json_start = response.content.find("{")
-            json_end = response.content.rfind("}") + 1
+            json_start = text.find("{")
+            json_end = text.rfind("}") + 1
             if json_start != -1 and json_end != 0:
-                recipe_data = json.loads(response.content[json_start:json_end])
+                recipe_data = json.loads(text[json_start:json_end])
             else:
                 raise ValueError("No JSON found")
         except (json.JSONDecodeError, ValueError):
             recipe_data = {
                 "name": "AI个性化食谱",
-                "description": response.content,
+                "description": text,
                 "nutrition_info": {"calories": 2000, "protein": 60, "carbs": 250, "fat": 70},
                 "total_calories": 2000
             }
-
-        state["recipe"] = recipe_data
-        return state
+        return recipe_data
 
     def _quality_review_agent(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """质量审核Agent：审核食谱合理性"""
@@ -149,12 +191,18 @@ class NutritionAgentWorkflow:
         health_analysis = state.get("health_analysis", "")
         nutrition_plan = state.get("nutrition_plan", "")
 
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "你是一位资深营养师。请审核食谱是否符合健康需求和营养方案。如果通过审核，请返回PASS；如果不符合要求，请详细说明需要修改的内容。"),
-            ("user", f"健康分析：\n{health_analysis}\n\n营养方案：\n{nutrition_plan}\n\n食谱名称：{recipe.get('name', '')}\n\n食谱描述：{recipe.get('description', '')}\n\n营养信息：{recipe.get('nutrition_info', {})}")
-        ])
+        messages = [
+            SystemMessage(content=QUALITY_REVIEW_SYSTEM),
+            HumanMessage(content=QUALITY_REVIEW_USER_TEMPLATE.format(
+                health_analysis=health_analysis,
+                nutrition_plan=nutrition_plan,
+                recipe_name=recipe.get("name", ""),
+                recipe_description=recipe.get("description", ""),
+                nutrition_info=recipe.get("nutrition_info", {}),
+            )),
+        ]
 
-        response = self.llm.invoke(prompt.format_messages())
+        response = self.llm.invoke(messages)
         state["review_result"] = response.content
 
         state["iteration_count"] = state.get("iteration_count", 0) + 1
@@ -178,3 +226,62 @@ class NutritionAgentWorkflow:
 
         result = self.workflow.invoke(initial_state)
         return result.get("recipe", {})
+
+    def run_stream(self, health_report, preferences, user_info) -> Iterator[Dict[str, Any]]:
+        """流式运行工作流：按阶段推送进度，食谱生成逐 token 输出
+
+        事件类型：
+        - {"type": "stage", "stage": "...", "message": "..."} 阶段进度
+        - {"type": "token", "content": "..."} 食谱文本增量
+        - {"type": "result", "recipe": {...}} 最终结果
+        - {"type": "error", "message": "..."} 失败信息
+        """
+        state = {
+            "health_report": health_report,
+            "preferences": preferences,
+            "user_info": user_info,
+        }
+        try:
+            yield {"type": "stage", "stage": "health_analysis", "message": "正在分析体检报告，识别健康风险..."}
+            state = self._health_analysis_agent(state)
+
+            yield {"type": "stage", "stage": "nutrition_planning", "message": "正在结合营养知识制定个性化方案..."}
+            state = self._nutrition_planning_agent(state)
+
+            for attempt in range(3):
+                yield {
+                    "type": "stage",
+                    "stage": "recipe_generation",
+                    "message": f"正在生成食谱（第 {attempt + 1} 版）...",
+                }
+                collector: List[str] = []
+                for event in self._stream_recipe_text(state, collector):
+                    yield event
+                state["recipe"] = self._parse_recipe_text("".join(collector))
+
+                yield {"type": "stage", "stage": "quality_review", "message": "营养师正在审核食谱合理性..."}
+                state = self._quality_review_agent(state)
+                if state.get("review_passed"):
+                    break
+                if attempt < 2:
+                    yield {
+                        "type": "stage",
+                        "stage": "recipe_revise",
+                        "message": "未通过审核，正在根据修改意见重新生成...",
+                    }
+
+            yield {"type": "result", "recipe": state.get("recipe", {})}
+        except Exception as e:
+            yield {"type": "error", "message": f"生成失败：{e}"}
+
+    def _stream_recipe_text(self, state: Dict[str, Any], collector: List[str]) -> Iterator[Dict[str, Any]]:
+        """流式调用 LLM 生成食谱文本，token 写入 collector 并逐段 yield"""
+        nutrition_plan = state.get("nutrition_plan", "")
+        preferences = state.get("preferences", [])
+        preferences_str = self._format_preferences(preferences)
+        messages = self._recipe_messages(nutrition_plan, preferences_str)
+
+        for chunk in self.llm.stream(messages):
+            text = chunk.content or ""
+            collector.append(text)
+            yield {"type": "token", "content": text}

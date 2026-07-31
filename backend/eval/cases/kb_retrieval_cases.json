@@ -1,0 +1,18 @@
+[
+  {"query": "血糖高吃什么好", "expected_category": "血糖管理"},
+  {"query": "高血压 少吃盐", "expected_category": "血压管理"},
+  {"query": "痛风 不能吃什么", "expected_category": "尿酸管理"},
+  {"query": "减肥 热量", "expected_category": "体重管理"},
+  {"query": "孕期怎么补叶酸", "expected_category": "孕期营养"},
+  {"query": "老人补钙", "expected_category": "骨骼健康"},
+  {"query": "运动后怎么补水", "expected_category": "运动营养"},
+  {"query": "贫血吃什么补铁", "expected_category": "贫血营养"},
+  {"query": "素食缺什么营养", "expected_category": "素食营养"},
+  {"query": "外卖怎么点健康", "expected_category": "外食指南"},
+  {"query": "脂肪肝能喝酒吗", "expected_category": "肝脏健康"},
+  {"query": "增肌吃多少蛋白质", "expected_category": "肌肉增长"},
+  {"query": "晚上失眠吃什么", "expected_category": "睡眠营养"},
+  {"query": "经常熬夜怎么补", "expected_category": "生活方式"},
+  {"query": "高胆固醇饮食注意什么", "expected_category": "血脂管理"},
+  {"query": "乳糖不耐受能喝牛奶吗", "expected_category": "食物不耐受"}
+]

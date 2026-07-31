@@ -61,6 +61,25 @@
         <el-button type="primary" :loading="generating" @click="handleGenerate">开始生成</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="genDialogVisible"
+      title="AI 正在生成食谱"
+      width="560px"
+      :close-on-click-modal="false"
+      :show-close="false"
+    >
+      <div class="flex items-center text-gray-600 mb-3">
+        <el-icon class="is-loading mr-2"><Loading /></el-icon>
+        {{ genStage || '准备中...' }}
+      </div>
+      <el-scrollbar max-height="320px">
+        <div class="bg-gray-50 rounded p-4 text-sm whitespace-pre-wrap">{{ genText }}</div>
+      </el-scrollbar>
+      <template #footer>
+        <el-button type="primary" :loading="generating">生成中...</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -68,7 +87,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import api from '@/api'
 import { ElMessage } from 'element-plus'
-import { MagicStick } from '@element-plus/icons-vue'
+import { Loading, MagicStick } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const generating = ref(false)
@@ -78,6 +97,9 @@ const page = ref(1)
 const pageSize = ref(6)
 const total = ref(0)
 const showGenerateDialog = ref(false)
+const genDialogVisible = ref(false)
+const genStage = ref('')
+const genText = ref('')
 
 const generateForm = reactive({
   health_report_id: null
@@ -118,13 +140,28 @@ const handleGenerate = async () => {
   }
 
   generating.value = true
+  showGenerateDialog.value = false
+  genStage.value = ''
+  genText.value = ''
+  genDialogVisible.value = true
   try {
-    await api.recipes.generate(generateForm)
-    ElMessage.success('食谱生成成功！')
-    showGenerateDialog.value = false
-    await fetchData()
+    await api.recipes.generateStream(generateForm, (event) => {
+      if (event.type === 'stage') {
+        genStage.value = event.message
+      } else if (event.type === 'token') {
+        genText.value += event.content
+      } else if (event.type === 'result') {
+        ElMessage.success('食谱生成成功！')
+        genDialogVisible.value = false
+        fetchData()
+      } else if (event.type === 'error') {
+        ElMessage.error(event.message || '生成失败')
+        genDialogVisible.value = false
+      }
+    })
   } catch (error) {
-    console.error('生成失败:', error)
+    ElMessage.error(error.message || '生成失败')
+    genDialogVisible.value = false
   } finally {
     generating.value = false
   }

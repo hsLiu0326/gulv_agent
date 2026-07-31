@@ -27,6 +27,10 @@
           <el-icon><BookOpenIcon /></el-icon>
           <span>知识库</span>
         </el-menu-item>
+        <el-menu-item index="/chat">
+          <el-icon><ChatDotRoundIcon /></el-icon>
+          <span>对话助手</span>
+        </el-menu-item>
         <el-menu-item index="/profile">
           <el-icon><UserIcon /></el-icon>
           <span>个人中心</span>
@@ -52,6 +56,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { Grid as DashboardIcon, Document as DocumentIcon, List as ListIcon, Setting as SettingIcon, User as UserIcon, Calendar as CalendarIcon, Reading as BookOpenIcon } from '@element-plus/icons-vue'
+import { ChatDotRound as ChatDotRoundIcon } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -67,6 +72,7 @@ const currentTitle = computed(() => {
     '/preferences': '口味偏好',
     '/daily-menus': '膳食规划',
     '/knowledge': '知识库',
+    '/chat': '对话助手',
     '/profile': '个人中心'
   }
   return titles[route.path] || 'AI营养师'

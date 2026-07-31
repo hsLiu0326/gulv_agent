@@ -1,0 +1,48 @@
+[
+  {
+    "name": "完整五项指标",
+    "content": "空腹血糖：7.2 mmol/L\n血压 138/88 mmHg\n血尿酸：420 μmol/L\n总胆固醇：5.8 mmol/L\n甘油三酯：1.9 mmol/L",
+    "expected": {
+      "blood_glucose": 7.2,
+      "blood_pressure_systolic": 138,
+      "blood_pressure_diastolic": 88,
+      "uric_acid": 420.0,
+      "cholesterol": 5.8,
+      "triglycerides": 1.9
+    }
+  },
+  {
+    "name": "英文缩写指标",
+    "content": "GLU: 6.5 mmol/L\nBP 125/82 mmHg\nUA: 380 μmol/L\nTC: 5.2 mmol/L\nTG: 1.5 mmol/L",
+    "expected": {
+      "blood_glucose": 6.5,
+      "blood_pressure_systolic": 125,
+      "blood_pressure_diastolic": 82,
+      "uric_acid": 380.0,
+      "cholesterol": 5.2,
+      "triglycerides": 1.5
+    }
+  },
+  {
+    "name": "部分指标缺失",
+    "content": "体检结果：血压 150/95 mmHg，其余指标未见异常。",
+    "expected": {
+      "blood_pressure_systolic": 150,
+      "blood_pressure_diastolic": 95,
+      "blood_glucose": null,
+      "cholesterol": null
+    }
+  },
+  {
+    "name": "带单位连写",
+    "content": "空腹血糖7.2，血压：138/85，尿酸420，胆固醇5.8，甘油三酯2.1",
+    "expected": {
+      "blood_glucose": 7.2,
+      "blood_pressure_systolic": 138,
+      "blood_pressure_diastolic": 85,
+      "uric_acid": 420.0,
+      "cholesterol": 5.8,
+      "triglycerides": 2.1
+    }
+  }
+]

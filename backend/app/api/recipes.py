@@ -1,5 +1,8 @@
 """食谱接口模块"""
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -55,6 +58,47 @@ def generate_recipe(
     db.commit()
     db.refresh(recipe)
     return recipe
+
+
+@router.post("/generate-stream")
+async def generate_recipe_stream(
+    generate_data: RecipeGenerate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """AI生成个性化食谱（SSE 流式：阶段进度 + 逐 token 输出）"""
+    from app.models.health_report import HealthReport
+    health_report = db.query(HealthReport).filter(
+        HealthReport.id == generate_data.health_report_id,
+        HealthReport.user_id == current_user.id
+    ).first()
+
+    if not health_report:
+        raise HTTPException(status_code=404, detail="健康报告不存在")
+
+    from app.models.recipe import TastePreference
+    preferences = db.query(TastePreference).filter(
+        TastePreference.user_id == current_user.id
+    ).all()
+
+    workflow = NutritionAgentWorkflow()
+
+    def event_stream():
+        for event in workflow.run_stream(
+            health_report=health_report,
+            preferences=preferences,
+            user_info=current_user,
+        ):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/", response_model=List[RecipeResponse])

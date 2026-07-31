@@ -64,6 +64,53 @@ const paginatedList = (url, page = 1, pageSize = 20) =>
     total: Number(res.headers['x-total-count'] ?? res.data.length)
   }))
 
+// SSE 流式请求：fetch 读取事件流，onEvent 回调收到已解析的事件对象
+const ssePost = (url, data, onEvent) => {
+  const token = localStorage.getItem('token')
+  return fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify(data)
+  }).then(async (res) => {
+    if (!res.ok) {
+      let detail = '请求失败'
+      try {
+        const err = await res.json()
+        detail = err.detail || detail
+      } catch (e) { /* ignore */ }
+      if (res.status === 401) {
+        localStorage.removeItem('token')
+        router.push('/login')
+      }
+      throw new Error(detail)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.startsWith('data:')) {
+          const payload = trimmed.slice(5).trim()
+          if (payload) {
+            try {
+              onEvent(JSON.parse(payload))
+            } catch (e) { /* 忽略无法解析的事件 */ }
+          }
+        }
+      }
+    }
+  })
+}
+
 const api = {
   auth: {
     login: (data) => apiClient.post('/auth/login', new URLSearchParams(data), {
@@ -83,7 +130,12 @@ const api = {
   recipes: {
     list: (page, pageSize) => paginatedList('/recipes/', page, pageSize),
     get: (id) => apiClient.get(`/recipes/${id}`),
-    generate: (data) => apiClient.post('/recipes/generate', data)
+    generate: (data) => apiClient.post('/recipes/generate', data),
+    // SSE 流式生成：通过 fetch 读取事件流，onEvent 回调收到 {type: stage/token/result/error}
+    generateStream: (data, onEvent) => ssePost('/api/recipes/generate-stream', data, onEvent)
+  },
+  chat: {
+    stream: (data, onEvent) => ssePost('/api/chat/stream', data, onEvent)
   },
   preferences: {
     list: (page, pageSize) => paginatedList('/preferences/', page, pageSize),

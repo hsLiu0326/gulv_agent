@@ -2,6 +2,7 @@
 import re
 import json
 from typing import Dict, Optional
+from app.agents.prompts import REPORT_PARSE_SYSTEM, REPORT_PARSE_USER_TEMPLATE
 from app.core.config import settings
 
 
@@ -57,31 +58,19 @@ class HealthReportParser:
         """使用 LLM 解析报告内容"""
         try:
             from langchain_openai import ChatOpenAI
+            from langchain_core.messages import HumanMessage, SystemMessage
 
             llm = ChatOpenAI(
-                model="gpt-4o-mini",
-                openai_api_key=settings.OPENAI_API_KEY,
-                openai_api_base=settings.OPENAI_BASE_URL,
+                model=settings.LLM_MODEL,
+                api_key=settings.OPENAI_API_KEY,
+                base_url=settings.OPENAI_BASE_URL,
                 temperature=0,
             )
 
-            prompt = f"""你是一位医学检验专家。请从以下体检报告文本中提取关键指标数值，返回纯JSON格式。
-
-报告内容：
-{content}
-
-请返回如下JSON（找不到的指标填null，不要编造）：
-{{
-    "blood_glucose": 血糖值(float, 单位mmol/L),
-    "blood_pressure_systolic": 收缩压(int, 单位mmHg),
-    "blood_pressure_diastolic": 舒张压(int, 单位mmHg),
-    "uric_acid": 尿酸值(float, 单位μmol/L),
-    "cholesterol": 总胆固醇(float, 单位mmol/L),
-    "triglycerides": 甘油三酯(float, 单位mmol/L),
-    "summary": "用一两句话概括这份报告的主要健康风险"
-}}
-
-只返回JSON，不要任何其他文字。"""
+            prompt = [
+                SystemMessage(content=REPORT_PARSE_SYSTEM),
+                HumanMessage(content=REPORT_PARSE_USER_TEMPLATE.format(content=content)),
+            ]
 
             response = llm.invoke(prompt)
             text = response.content.strip()

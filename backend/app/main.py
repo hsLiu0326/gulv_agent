@@ -6,7 +6,16 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api import auth, users, health_reports, recipes, daily_menus, preferences, knowledge_base
+from app.api import (
+    auth,
+    chat,
+    daily_menus,
+    health_reports,
+    knowledge_base,
+    preferences,
+    recipes,
+    users,
+)
 from knowledge_base import init_knowledge_base
 
 
@@ -75,6 +84,7 @@ app.include_router(recipes.router, prefix="/api")
 app.include_router(daily_menus.router, prefix="/api")
 app.include_router(preferences.router, prefix="/api")
 app.include_router(knowledge_base.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 
 
 @app.get("/")

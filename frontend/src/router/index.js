@@ -11,6 +11,7 @@ const routes = [
       { path: 'preferences', name: 'Preferences', component: () => import('@/views/Preferences.vue') },
       { path: 'daily-menus', name: 'DailyMenus', component: () => import('@/views/DailyMenus.vue') },
       { path: 'knowledge', name: 'KnowledgeBase', component: () => import('@/views/KnowledgeBase.vue') },
+      { path: 'chat', name: 'Chat', component: () => import('@/views/Chat.vue') },
       { path: 'recipes', name: 'Recipes', component: () => import('@/views/Recipes.vue') },
       { path: 'recipes/:id', name: 'RecipeDetail', component: () => import('@/views/RecipeDetail.vue') },
       { path: 'profile', name: 'Profile', component: () => import('@/views/Profile.vue') }

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = "sk-your-openai-api-key"
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_MODEL: str = "gpt-4o-mini"
 
     CHROMA_PERSIST_DIR: str = "./chroma_data"
 
