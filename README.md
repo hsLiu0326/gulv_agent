@@ -33,6 +33,9 @@ cp backend/.env.example backend/.env
 # 2. 一键启动（首次会自动构建镜像并初始化数据库）
 docker compose up -d --build
 
+# 国内网络下 pip 默认走阿里云镜像源；如需其他源：
+# docker compose build --build-arg PIP_INDEX_URL=https://pypi.org/simple/ backend
+
 # 3. 访问
 #    前端: http://localhost
 #    后端: http://localhost:8000/docs

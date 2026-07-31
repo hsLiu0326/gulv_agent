@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterator, List, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langgraph.graph import END, StateGraph
+from langgraph.graph import END, START, StateGraph
 
 from app.agents.prompts import (
     HEALTH_ANALYSIS_SYSTEM,
@@ -56,8 +56,7 @@ class NutritionAgentWorkflow:
         workflow.add_node("generate_recipe", self._recipe_generation_agent)
         workflow.add_node("review_quality", self._quality_review_agent)
 
-        workflow.set_entry_point("analyze_health")
-
+        workflow.add_edge(START, "analyze_health")
         workflow.add_edge("analyze_health", "plan_nutrition")
         workflow.add_edge("plan_nutrition", "generate_recipe")
         workflow.add_edge("generate_recipe", "review_quality")
