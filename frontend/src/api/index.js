@@ -28,7 +28,12 @@ apiClient.interceptors.request.use(
 let redirectingToLogin = false
 
 apiClient.interceptors.response.use(
-  (response) => response.data,
+  (response) => {
+    if (response.config.rawResponse) {
+      return response
+    }
+    return response.data
+  },
   (error) => {
     const message = error.response?.data?.detail || '请求失败'
     if (error.response?.status === 401) {
@@ -49,6 +54,16 @@ apiClient.interceptors.response.use(
   }
 )
 
+// 分页列表请求：携带 skip/limit，并从响应头读取总数
+const paginatedList = (url, page = 1, pageSize = 20) =>
+  apiClient.get(url, {
+    params: { skip: (page - 1) * pageSize, limit: pageSize },
+    rawResponse: true
+  }).then((res) => ({
+    items: res.data,
+    total: Number(res.headers['x-total-count'] ?? res.data.length)
+  }))
+
 const api = {
   auth: {
     login: (data) => apiClient.post('/auth/login', new URLSearchParams(data), {
@@ -60,22 +75,23 @@ const api = {
     me: () => apiClient.get('/users/me')
   },
   healthReports: {
-    list: () => apiClient.get('/health-reports/'),
+    list: (page, pageSize) => paginatedList('/health-reports/', page, pageSize),
     get: (id) => apiClient.get(`/health-reports/${id}`),
-    create: (data) => apiClient.post('/health-reports/', data)
+    create: (data) => apiClient.post('/health-reports/', data),
+    upload: (formData) => apiClient.post('/health-reports/upload', formData)
   },
   recipes: {
-    list: () => apiClient.get('/recipes/'),
+    list: (page, pageSize) => paginatedList('/recipes/', page, pageSize),
     get: (id) => apiClient.get(`/recipes/${id}`),
     generate: (data) => apiClient.post('/recipes/generate', data)
   },
   preferences: {
-    list: () => apiClient.get('/preferences/'),
+    list: (page, pageSize) => paginatedList('/preferences/', page, pageSize),
     create: (data) => apiClient.post('/preferences/', data),
     delete: (id) => apiClient.delete(`/preferences/${id}`)
   },
   dailyMenus: {
-    list: () => apiClient.get('/daily-menus/'),
+    list: (page, pageSize) => paginatedList('/daily-menus/', page, pageSize),
     get: (id) => apiClient.get(`/daily-menus/${id}`),
     create: (data) => apiClient.post('/daily-menus/', data),
     delete: (id) => apiClient.delete(`/daily-menus/${id}`)

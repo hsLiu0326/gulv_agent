@@ -1,5 +1,5 @@
 """食谱接口模块"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -62,11 +62,14 @@ def get_recipes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     page: dict = Depends(pagination),
+    response: Response = None,
 ):
     """获取用户的食谱列表（分页）"""
-    return db.query(Recipe).filter(
+    query = db.query(Recipe).filter(
         Recipe.user_id == current_user.id
-    ).order_by(Recipe.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
+    )
+    response.headers["X-Total-Count"] = str(query.count())
+    return query.order_by(Recipe.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.get("/{recipe_id}", response_model=RecipeResponse)

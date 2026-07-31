@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -81,11 +81,14 @@ def get_daily_menus(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     page: dict = Depends(pagination),
+    response: Response = None,
 ):
     """获取每日菜单列表（分页）"""
-    return db.query(DailyMenu).filter(
+    query = db.query(DailyMenu).filter(
         DailyMenu.user_id == current_user.id
-    ).order_by(DailyMenu.menu_date.desc()).offset(page["skip"]).limit(page["limit"]).all()
+    )
+    response.headers["X-Total-Count"] = str(query.count())
+    return query.order_by(DailyMenu.menu_date.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.get("/{menu_id}", response_model=DailyMenuResponse)

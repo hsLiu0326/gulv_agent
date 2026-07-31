@@ -44,6 +44,18 @@
           </template>
         </el-table-column>
       </el-table>
+      <div class="flex justify-end mt-4" v-if="total > 0">
+        <el-pagination
+          background
+          layout="total, sizes, prev, pager, next"
+          :total="total"
+          :current-page="page"
+          :page-size="pageSize"
+          :page-sizes="[10, 20, 50]"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
+        />
+      </div>
     </el-card>
 
     <el-dialog v-model="showAddDialog" title="添加每日菜单" width="600px">
@@ -118,6 +130,9 @@ import { Plus } from '@element-plus/icons-vue'
 const loading = ref(false)
 const adding = ref(false)
 const menus = ref([])
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 const showAddDialog = ref(false)
 const showDetailDialog = ref(false)
 const currentMenu = ref(null)
@@ -130,13 +145,25 @@ const addForm = reactive({
 const fetchMenus = async () => {
   loading.value = true
   try {
-    const response = await api.dailyMenus.list()
-    menus.value = response
+    const response = await api.dailyMenus.list(page.value, pageSize.value)
+    menus.value = response.items
+    total.value = response.total
   } catch (error) {
     console.error('获取菜单列表失败:', error)
   } finally {
     loading.value = false
   }
+}
+
+const handlePageChange = (p) => {
+  page.value = p
+  fetchMenus()
+}
+
+const handleSizeChange = (s) => {
+  pageSize.value = s
+  page.value = 1
+  fetchMenus()
 }
 
 const handleAdd = async () => {

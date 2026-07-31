@@ -31,6 +31,19 @@
       </el-col>
     </el-row>
 
+    <div class="flex justify-end mt-4" v-if="total > 0">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :current-page="page"
+        :page-size="pageSize"
+        :page-sizes="[6, 12, 24]"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </div>
+
     <el-empty v-if="!loading && recipes.length === 0" description="暂无食谱">
       <el-button type="primary" @click="showGenerateDialog = true">生成第一个食谱</el-button>
     </el-empty>
@@ -61,6 +74,9 @@ const loading = ref(false)
 const generating = ref(false)
 const recipes = ref([])
 const reports = ref([])
+const page = ref(1)
+const pageSize = ref(6)
+const total = ref(0)
 const showGenerateDialog = ref(false)
 
 const generateForm = reactive({
@@ -71,16 +87,28 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [recipesRes, reportsRes] = await Promise.all([
-      api.recipes.list(),
-      api.healthReports.list()
+      api.recipes.list(page.value, pageSize.value),
+      api.healthReports.list(1, 100)
     ])
-    recipes.value = recipesRes
-    reports.value = reportsRes
+    recipes.value = recipesRes.items
+    total.value = recipesRes.total
+    reports.value = reportsRes.items
   } catch (error) {
     console.error('获取数据失败:', error)
   } finally {
     loading.value = false
   }
+}
+
+const handlePageChange = (p) => {
+  page.value = p
+  fetchData()
+}
+
+const handleSizeChange = (s) => {
+  pageSize.value = s
+  page.value = 1
+  fetchData()
 }
 
 const handleGenerate = async () => {

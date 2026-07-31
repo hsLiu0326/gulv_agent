@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_password, get_password_hash, create_access_token
 from app.core.config import settings
-from app.models.user import User
+from app.models.user import User, Gender
 from app.schemas.user import UserCreate, UserResponse, Token
 
 
@@ -32,7 +32,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         username=user_data.username,
         email=user_data.email,
         hashed_password=get_password_hash(user_data.password),
-        full_name=user_data.full_name
+        full_name=user_data.full_name,
+        phone=user_data.phone,
+        age=user_data.age,
+        gender=Gender(user_data.gender) if user_data.gender else None,
+        height=user_data.height,
+        weight=user_data.weight,
     )
     db.add(user)
     db.commit()

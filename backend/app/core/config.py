@@ -41,6 +41,11 @@ class Settings(BaseSettings):
 
     CHROMA_PERSIST_DIR: str = "./chroma_data"
 
+    # 知识库向量化提供方：ollama（本地语义向量，推荐）/ hash（纯本地兜底，无模型依赖）
+    EMBEDDING_PROVIDER: str = "ollama"
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_EMBED_MODEL: str = "qwen-emb:latest"
+
     # CORS 允许的域名，逗号分隔
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 

@@ -23,7 +23,8 @@ class User(Base):
     full_name = Column(String(100))
     phone = Column(String(20))
     age = Column(Integer)
-    gender = Column(Enum(Gender))
+    # values_callable 让数据库存小写值(male/female/other)，与 init.sql 的 ENUM 一致
+    gender = Column(Enum(Gender, values_callable=lambda g: [item.value for item in g]))
     height = Column(Float)
     weight = Column(Float)
     is_active = Column(Boolean, default=True)

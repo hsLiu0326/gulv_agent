@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -33,11 +33,14 @@ def get_preferences(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     page: dict = Depends(pagination),
+    response: Response = None,
 ):
     """获取用户偏好列表（分页）"""
-    return db.query(TastePreference).filter(
+    query = db.query(TastePreference).filter(
         TastePreference.user_id == current_user.id
-    ).order_by(TastePreference.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
+    )
+    response.headers["X-Total-Count"] = str(query.count())
+    return query.order_by(TastePreference.created_at.desc()).offset(page["skip"]).limit(page["limit"]).all()
 
 
 @router.delete("/{preference_id}")

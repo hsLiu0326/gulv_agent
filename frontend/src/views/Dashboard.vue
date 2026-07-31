@@ -63,9 +63,9 @@ const fetchStats = async () => {
       api.preferences.list()
     ])
     stats.value = {
-      reports: reports.length,
-      recipes: recipes.length,
-      preferences: preferences.length
+      reports: reports.total,
+      recipes: recipes.total,
+      preferences: preferences.total
     }
   } catch (error) {
     console.error('获取统计数据失败:', error)

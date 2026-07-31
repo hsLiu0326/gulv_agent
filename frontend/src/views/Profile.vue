@@ -11,6 +11,11 @@
         <el-descriptions-item label="用户名">{{ userInfo.username }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ userInfo.email }}</el-descriptions-item>
         <el-descriptions-item label="姓名">{{ userInfo.full_name || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ userInfo.phone || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="性别">{{ getGenderLabel(userInfo.gender) }}</el-descriptions-item>
+        <el-descriptions-item label="年龄">{{ userInfo.age ? `${userInfo.age} 岁` : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="身高">{{ userInfo.height ? `${userInfo.height} cm` : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="体重">{{ userInfo.weight ? `${userInfo.weight} kg` : '-' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ formatDate(userInfo.created_at) }}</el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -75,6 +80,11 @@ const handleChangePassword = () => {
   passwordForm.oldPassword = ''
   passwordForm.newPassword = ''
   passwordForm.confirmPassword = ''
+}
+
+const getGenderLabel = (gender) => {
+  const labels = { male: '男', female: '女', other: '其他' }
+  return labels[gender] || '-'
 }
 
 const formatDate = (dateStr) => {
