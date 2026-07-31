@@ -12,6 +12,10 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
+    // FormData 交由浏览器自动设置 multipart boundary，避免默认 JSON 头导致 422
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
     if (config.headers?.skipAuth) {
       delete config.headers.skipAuth
       return config

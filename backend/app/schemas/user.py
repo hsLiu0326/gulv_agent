@@ -1,6 +1,6 @@
 """用户Pydantic模式"""
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Literal, Optional
 from datetime import datetime
 
 
@@ -12,7 +12,9 @@ class UserCreate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     age: Optional[int] = Field(default=None, ge=1, le=150, description="年龄")
-    gender: Optional[str] = Field(default=None, description="性别: male/female/other")
+    gender: Optional[Literal["male", "female", "other"]] = Field(
+        default=None, description="性别: male/female/other"
+    )
     height: Optional[float] = Field(default=None, ge=50, le=300, description="身高(cm)")
     weight: Optional[float] = Field(default=None, ge=20, le=500, description="体重(kg)")
 

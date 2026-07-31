@@ -1,7 +1,7 @@
 """食谱数据模型"""
 from sqlalchemy import Column, Integer, String, Text, Float, ForeignKey, JSON, DateTime, Date, Enum
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import backref, relationship
 from app.core.database import Base
 import enum
 
@@ -45,7 +45,11 @@ class Recipe(Base):
     description = Column(Text)
     nutrition_info = Column(JSON)
     total_calories = Column(Integer, default=0)
-    status = Column(Enum(RecipeStatus), default=RecipeStatus.DRAFT)
+    # values_callable 让小写值(male/female 同款)与 init.sql 的 ENUM 保持一致
+    status = Column(
+        Enum(RecipeStatus, values_callable=lambda e: [s.value for s in e]),
+        default=RecipeStatus.DRAFT,
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -76,12 +80,16 @@ class Meal(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     menu_id = Column(Integer, ForeignKey("daily_menus.id", ondelete="CASCADE"), nullable=False)
-    meal_type = Column(Enum(MealType), nullable=False)
+    meal_type = Column(
+        Enum(MealType, values_callable=lambda e: [m.value for m in e]),
+        nullable=False,
+    )
     target_calories = Column(Integer, default=0)
     actual_calories = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    menu = relationship("DailyMenu", backref="meals")
+    # passive_deletes=True：交由数据库 ON DELETE CASCADE，避免 ORM 先置空外键
+    menu = relationship("DailyMenu", backref=backref("meals", passive_deletes=True))
 
 
 class Dish(Base):
@@ -102,4 +110,4 @@ class Dish(Base):
     tips = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    meal = relationship("Meal", backref="dishes")
+    meal = relationship("Meal", backref=backref("dishes", passive_deletes=True))

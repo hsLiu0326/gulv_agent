@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
@@ -23,7 +24,11 @@ def create_daily_menu(
         notes=menu_data.notes
     )
     db.add(menu)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="当天菜单已存在")
     db.refresh(menu)
 
     total_calories = 0

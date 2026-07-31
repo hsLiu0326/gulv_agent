@@ -6,6 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.database import get_db
+from app.core.database import SessionLocal
 from app.core.security import get_current_user
 from app.core.dependencies import pagination
 from app.models.user import User
@@ -39,11 +40,17 @@ def generate_recipe(
     ).all()
 
     workflow = NutritionAgentWorkflow()
-    result = workflow.run(
-        health_report=health_report,
-        preferences=preferences,
-        user_info=current_user
-    )
+    try:
+        result = workflow.run(
+            health_report=health_report,
+            preferences=preferences,
+            user_info=current_user
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="AI 服务调用失败，请稍后重试或检查 AI 服务配置",
+        )
 
     recipe = Recipe(
         user_id=current_user.id,
@@ -89,6 +96,29 @@ async def generate_recipe_stream(
             preferences=preferences,
             user_info=current_user,
         ):
+            # 流式结束拿到结果后落库，保证列表可见（用独立会话，避免与请求会话生命周期纠缠）
+            if event.get("type") == "result" and event.get("recipe"):
+                recipe_data = event["recipe"]
+                session = SessionLocal()
+                try:
+                    db_recipe = Recipe(
+                        user_id=current_user.id,
+                        health_report_id=health_report.id,
+                        name=recipe_data.get("name", "AI个性化食谱"),
+                        description=recipe_data.get("description", ""),
+                        nutrition_info=recipe_data.get("nutrition_info"),
+                        total_calories=recipe_data.get("total_calories", 0),
+                        status="active",
+                    )
+                    session.add(db_recipe)
+                    session.commit()
+                    session.refresh(db_recipe)
+                    recipe_data["id"] = db_recipe.id
+                except Exception as e:
+                    session.rollback()
+                    event = {"type": "error", "message": f"食谱保存失败：{e}"}
+                finally:
+                    session.close()
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
