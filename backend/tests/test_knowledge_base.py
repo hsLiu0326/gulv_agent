@@ -31,7 +31,7 @@ def test_embed_text_deterministic_and_normalized():
 
 
 def test_add_documents_dedup(tmp_path):
-    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash")
+    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash", vector_store="json")
     kb.add_documents(DOCS)
     assert kb.count() == 3
     kb.add_documents(DOCS)  # 重复添加应去重
@@ -39,14 +39,14 @@ def test_add_documents_dedup(tmp_path):
 
 
 def test_reset(tmp_path):
-    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash")
+    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash", vector_store="json")
     kb.add_documents(DOCS)
     kb.reset(DOCS[:1])
     assert kb.count() == 1
 
 
 def test_search_hash_top1(tmp_path):
-    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash")
+    kb = KnowledgeBase(persist_dir=str(tmp_path), provider="hash", vector_store="json")
     kb.add_documents(DOCS)
     results = kb.search("高血压 少吃盐", n_results=3)
     assert results[0]["metadata"]["category"] == "血压管理"

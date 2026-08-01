@@ -48,7 +48,9 @@ def _make_agent(tmp_path, first_tool_call=True):
     fake = FakeChatLLM(first_tool_call=first_tool_call)
     agent.llm = fake
     agent._tool_llm = fake
-    agent.knowledge_base = KnowledgeBase(persist_dir=str(tmp_path), provider="hash")
+    agent.knowledge_base = KnowledgeBase(
+        persist_dir=str(tmp_path), provider="hash", vector_store="json"
+    )
     agent.knowledge_base.add_documents(
         [{"content": "高血压饮食注意事项：控制盐分摄入。", "source": "s", "category": "血压管理"}]
     )

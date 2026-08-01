@@ -45,7 +45,9 @@ def _make_workflow(tmp_path):
     """跳过 __init__（避免真实 LLM/知识库），注入 fake 依赖"""
     wf = NutritionAgentWorkflow.__new__(NutritionAgentWorkflow)
     wf.llm = FakeLLM()
-    wf.knowledge_base = KnowledgeBase(persist_dir=str(tmp_path), provider="hash")
+    wf.knowledge_base = KnowledgeBase(
+        persist_dir=str(tmp_path), provider="hash", vector_store="json"
+    )
     wf.knowledge_base.add_documents(
         [{"content": "高血压饮食：限盐。", "source": "s", "category": "血压管理"}]
     )

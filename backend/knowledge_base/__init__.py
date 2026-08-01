@@ -20,6 +20,8 @@ def init_knowledge_base():
             print("知识库已存在数据，跳过初始化")
         # 补齐向量缓存（首次使用 Ollama 或切换提供方后自动迁移）
         kb.ensure_embeddings()
+        # 同步到 ChromaDB 向量库（JSON 为数据源，Chroma 为检索索引）
+        kb.sync_chroma()
     except Exception as e:
         print("知识库初始化失败:", str(e))
         print("应用将继续运行，但知识库功能可能受限")

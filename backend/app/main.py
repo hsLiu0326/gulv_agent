@@ -1,4 +1,8 @@
 """FastAPI主应用"""
+from app.core.win_bootstrap import ensure_windows_bootstrap
+
+ensure_windows_bootstrap()  # 必须在任何第三方原生依赖导入之前执行（Windows 运行库引导）
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

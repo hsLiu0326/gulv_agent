@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "ollama"
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_EMBED_MODEL: str = "qwen-emb:latest"
+    # 知识库存储后端：chroma（向量库）/ json（纯 Python 内存检索兜底）
+    VECTOR_STORE: str = "json"
 
     # CORS 允许的域名，逗号分隔
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

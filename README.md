@@ -9,8 +9,8 @@
   血糖、血压、尿酸、胆固醇、甘油三酯等指标（LLM 解析 + 正则兜底）
 - **AI 个性化食谱**：LangGraph 多 Agent 工作流（健康分析 → 营养规划 → 食谱生成 → 质量审核），
   支持 SSE 流式输出，未通过审核最多自动回炉 3 次
-- **营养知识库问答**：37 条种子营养知识，Ollama 语义向量检索（qwen-emb），
-  离线哈希向量自动兜底
+- **营养知识库问答**：37 条种子营养知识，**Ollama 语义向量 + ChromaDB 向量库**
+  做向量粗排，自研"余弦 + 词频"混合打分精排；哈希向量 / JSON 检索自动兜底
 - **AI 对话助手**：多轮对话 + 知识库工具调用（function calling），流式回答
 - **每日膳食规划**：菜单 → 餐次 → 菜品三层结构，自动汇总热量与营养
 - **口味偏好管理**：喜欢/不喜欢/菜系/过敏原，参与食谱生成
@@ -20,7 +20,7 @@
 | 层 | 技术 |
 |---|---|
 | 后端 | Python FastAPI + SQLAlchemy + MySQL |
-| AI | LangChain + LangGraph + DeepSeek API（OpenAI 兼容）+ Ollama embedding |
+| AI | LangChain + LangGraph + DeepSeek API（OpenAI 兼容）+ Ollama embedding + ChromaDB |
 | 前端 | Vue 3 + Vite + Element Plus + Pinia |
 | 部署 | Docker Compose（MySQL + 后端 + Nginx 前端） |
 
@@ -86,7 +86,12 @@ python eval/run_eval.py --provider hash    # 完全离线
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `LLM_MODEL` | LLM 服务（默认 DeepSeek `deepseek-v4-flash`） |
 | `EMBEDDING_PROVIDER` | `ollama`（语义向量）/ `hash`（离线兜底） |
 | `OLLAMA_BASE_URL` / `OLLAMA_EMBED_MODEL` | Ollama embedding 服务 |
-| `CHROMA_PERSIST_DIR` | 知识库数据目录（JSON + 向量缓存） |
+| `VECTOR_STORE` | 知识库存储后端：`chroma`（向量库）/ `json`（纯 Python 兜底） |
+| `CHROMA_PERSIST_DIR` | 知识库数据目录（JSON 数据源 + Chroma 索引 + 向量缓存） |
+
+> Windows 提示：若本机 VC++ 运行库过旧导致 ChromaDB/onnxruntime 原生库崩溃，
+> 先运行 `python scripts/setup_win_runtime.py`（从 Ollama 目录复制新版运行库到
+> `backend/vendor/win_runtime`），应用启动时会在任何第三方库导入前自动完成引导。
 
 ## 项目结构
 
