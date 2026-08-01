@@ -1,5 +1,6 @@
 """AI Agent工作流模块"""
 import json
+import uuid
 from typing import Any, Dict, Iterator, List, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -16,6 +17,7 @@ from app.agents.prompts import (
     RECIPE_GENERATION_SYSTEM,
     RECIPE_GENERATION_USER_TEMPLATE,
 )
+from app.core.checkpointer import get_checkpointer
 from app.core.config import settings
 from app.services.knowledge_base import KnowledgeBase
 
@@ -33,6 +35,47 @@ class AgentState(TypedDict, total=False):
     iteration_count: int
 
 
+def user_info_to_dict(user) -> Dict[str, Any]:
+    """ORM User → 可序列化 dict（检查点要求状态可 JSON 序列化）"""
+    if user is None:
+        return {}
+    if isinstance(user, dict):
+        return user
+    gender = getattr(user, "gender", None)
+    return {
+        "age": getattr(user, "age", None),
+        "gender": gender.value if hasattr(gender, "value") else gender,
+        "height": getattr(user, "height", None),
+        "weight": getattr(user, "weight", None),
+        "full_name": getattr(user, "full_name", None),
+    }
+
+
+def preferences_to_dicts(preferences) -> List[Dict[str, Any]]:
+    """偏好 ORM 列表 → dict 列表"""
+    result = []
+    for p in preferences or []:
+        if isinstance(p, dict):
+            result.append(p)
+        else:
+            result.append(
+                {
+                    "preference_type": getattr(p, "preference_type", ""),
+                    "preference_value": getattr(p, "preference_value", ""),
+                }
+            )
+    return result
+
+
+def health_report_to_dict(report) -> Dict[str, Any]:
+    """健康报告 ORM → 可序列化 dict"""
+    if report is None:
+        return {}
+    if isinstance(report, dict):
+        return report
+    return {"report_content": getattr(report, "report_content", None)}
+
+
 class NutritionAgentWorkflow:
     """营养师Agent工作流"""
 
@@ -44,9 +87,9 @@ class NutritionAgentWorkflow:
             temperature=0.7
         )
         self.knowledge_base = KnowledgeBase()
-        self.workflow = self._build_workflow()
+        self.workflow = self._build_workflow(checkpointer=get_checkpointer())
 
-    def _build_workflow(self) -> StateGraph:
+    def _build_workflow(self, checkpointer=None):
         """构建Agent工作流"""
         workflow = StateGraph(AgentState)
 
@@ -66,35 +109,38 @@ class NutritionAgentWorkflow:
             {"revise": "generate_recipe", "complete": END}
         )
 
-        return workflow.compile()
+        return workflow.compile(checkpointer=checkpointer)
 
     def _format_user_info(self, user_info) -> str:
         """格式化用户信息"""
+        user_info = user_info if isinstance(user_info, dict) else user_info_to_dict(user_info)
         if not user_info:
             return "无"
         info = []
-        if user_info.age:
-            info.append(f"年龄：{user_info.age}岁")
-        if user_info.gender:
+        if user_info.get("age"):
+            info.append(f"年龄：{user_info['age']}岁")
+        if user_info.get("gender"):
             gender_map = {"male": "男", "female": "女", "other": "其他"}
-            info.append(f"性别：{gender_map.get(user_info.gender, user_info.gender)}")
-        if user_info.height:
-            info.append(f"身高：{user_info.height}cm")
-        if user_info.weight:
-            info.append(f"体重：{user_info.weight}kg")
-        if user_info.full_name:
-            info.append(f"姓名：{user_info.full_name}")
+            info.append(f"性别：{gender_map.get(user_info['gender'], user_info['gender'])}")
+        if user_info.get("height"):
+            info.append(f"身高：{user_info['height']}cm")
+        if user_info.get("weight"):
+            info.append(f"体重：{user_info['weight']}kg")
+        if user_info.get("full_name"):
+            info.append(f"姓名：{user_info['full_name']}")
         return "\n".join(info)
 
     def _format_preferences(self, preferences) -> str:
         """格式化用户偏好"""
+        preferences = preferences_to_dicts(preferences)
         if not preferences:
             return "无"
         pref_map = {}
         for p in preferences:
-            if p.preference_type not in pref_map:
-                pref_map[p.preference_type] = []
-            pref_map[p.preference_type].append(p.preference_value)
+            ptype = p.get("preference_type", "")
+            if ptype not in pref_map:
+                pref_map[ptype] = []
+            pref_map[ptype].append(p.get("preference_value", ""))
         result = []
         for key, values in pref_map.items():
             result.append(f"{key}：{', '.join(values)}")
@@ -110,7 +156,12 @@ class NutritionAgentWorkflow:
             SystemMessage(content=HEALTH_ANALYSIS_SYSTEM),
             HumanMessage(content=HEALTH_ANALYSIS_USER_TEMPLATE.format(
                 user_info=user_info_str,
-                report_content=health_report.report_content if health_report else "无",
+                report_content=(
+                    health_report.get("report_content")
+                    if isinstance(health_report, dict)
+                    else (health_report.report_content if health_report else None)
+                )
+                or "无",
             )),
         ]
 
@@ -215,18 +266,21 @@ class NutritionAgentWorkflow:
             return "complete"
         return "revise"
 
-    def run(self, health_report, preferences, user_info) -> Dict[str, Any]:
-        """运行工作流"""
+    def run(self, health_report, preferences, user_info, thread_id: str = None) -> Dict[str, Any]:
+        """运行工作流（thread_id 用于检查点持久化，缺省自动生成）"""
         initial_state = {
-            "health_report": health_report,
-            "preferences": preferences,
-            "user_info": user_info
+            "health_report": health_report_to_dict(health_report),
+            "preferences": preferences_to_dicts(preferences),
+            "user_info": user_info_to_dict(user_info),
         }
 
-        result = self.workflow.invoke(initial_state)
+        config = {"configurable": {"thread_id": thread_id or str(uuid.uuid4())}}
+        result = self.workflow.invoke(initial_state, config=config)
         return result.get("recipe", {})
 
-    def run_stream(self, health_report, preferences, user_info) -> Iterator[Dict[str, Any]]:
+    def run_stream(
+        self, health_report, preferences, user_info, thread_id: str = None
+    ) -> Iterator[Dict[str, Any]]:
         """流式运行工作流：按阶段推送进度，食谱生成逐 token 输出
 
         事件类型：
@@ -235,17 +289,21 @@ class NutritionAgentWorkflow:
         - {"type": "result", "recipe": {...}} 最终结果
         - {"type": "error", "message": "..."} 失败信息
         """
+        thread_id = thread_id or str(uuid.uuid4())
         state = {
-            "health_report": health_report,
-            "preferences": preferences,
-            "user_info": user_info,
+            "health_report": health_report_to_dict(health_report),
+            "preferences": preferences_to_dicts(preferences),
+            "user_info": user_info_to_dict(user_info),
         }
+        config = {"configurable": {"thread_id": thread_id}}
         try:
             yield {"type": "stage", "stage": "health_analysis", "message": "正在分析体检报告，识别健康风险..."}
             state = self._health_analysis_agent(state)
+            self._save_checkpoint(config, state)
 
             yield {"type": "stage", "stage": "nutrition_planning", "message": "正在结合营养知识制定个性化方案..."}
             state = self._nutrition_planning_agent(state)
+            self._save_checkpoint(config, state)
 
             for attempt in range(3):
                 yield {
@@ -257,9 +315,11 @@ class NutritionAgentWorkflow:
                 for event in self._stream_recipe_text(state, collector):
                     yield event
                 state["recipe"] = self._parse_recipe_text("".join(collector))
+                self._save_checkpoint(config, state)
 
                 yield {"type": "stage", "stage": "quality_review", "message": "营养师正在审核食谱合理性..."}
                 state = self._quality_review_agent(state)
+                self._save_checkpoint(config, state)
                 if state.get("review_passed"):
                     break
                 if attempt < 2:
@@ -269,9 +329,16 @@ class NutritionAgentWorkflow:
                         "message": "未通过审核，正在根据修改意见重新生成...",
                     }
 
-            yield {"type": "result", "recipe": state.get("recipe", {})}
+            yield {"type": "result", "thread_id": thread_id, "recipe": state.get("recipe", {})}
         except Exception as e:
             yield {"type": "error", "message": f"生成失败：{e}"}
+
+    def _save_checkpoint(self, config: Dict[str, Any], state: Dict[str, Any]):
+        """将当前工作流状态写入检查点（失败不影响主流程）"""
+        try:
+            self.workflow.update_state(config, dict(state))
+        except Exception as e:
+            print(f"[检查点] 保存失败: {e}")
 
     def _stream_recipe_text(self, state: Dict[str, Any], collector: List[str]) -> Iterator[Dict[str, Any]]:
         """流式调用 LLM 生成食谱文本，token 写入 collector 并逐段 yield"""

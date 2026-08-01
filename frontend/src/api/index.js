@@ -139,7 +139,8 @@ const api = {
     generateStream: (data, onEvent) => ssePost('/api/recipes/generate-stream', data, onEvent)
   },
   chat: {
-    stream: (data, onEvent) => ssePost('/api/chat/stream', data, onEvent)
+    stream: (data, onEvent) => ssePost('/api/chat/stream', data, onEvent),
+    history: () => apiClient.get('/chat/history')
   },
   preferences: {
     list: (page, pageSize) => paginatedList('/preferences/', page, pageSize),

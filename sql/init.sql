@@ -127,6 +127,18 @@ CREATE TABLE dishes (
     FOREIGN KEY (meal_id) REFERENCES meals(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='菜品表';
 
+-- AI 对话消息表（服务端会话记忆）
+CREATE TABLE chat_messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL COMMENT '用户ID',
+    session_id VARCHAR(64) DEFAULT 'default' COMMENT '会话ID',
+    role VARCHAR(16) NOT NULL COMMENT '角色: user/assistant',
+    content TEXT NOT NULL COMMENT '消息内容',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_session (user_id, session_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI对话消息表';
+
 -- 初始管理员用户（密码：admin123）
 INSERT INTO users (username, email, hashed_password, full_name, is_superuser) VALUES
 ('admin', 'admin@ainutritionist.com', '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31W', '系统管理员', TRUE);

@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     OLLAMA_EMBED_MODEL: str = "qwen-emb:latest"
     # 知识库存储后端：chroma（向量库）/ json（纯 Python 内存检索兜底）
     VECTOR_STORE: str = "json"
+    # LangGraph 工作流检查点目录（SQLite 持久化）
+    CHECKPOINT_PERSIST_DIR: str = "./checkpoints"
 
     # CORS 允许的域名，逗号分隔
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"

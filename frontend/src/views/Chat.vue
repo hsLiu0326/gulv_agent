@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
+import { nextTick, onMounted, ref } from 'vue'
 import api from '@/api'
 import { Loading } from '@element-plus/icons-vue'
 
@@ -63,7 +63,6 @@ const handleSend = async () => {
   const q = question.value.trim()
   if (!q || streaming.value) return
 
-  const history = messages.value.map((m) => ({ role: m.role, content: m.content }))
   messages.value.push({ role: 'user', content: q })
   messages.value.push({ role: 'assistant', content: '', toolInfo: null })
   question.value = ''
@@ -71,7 +70,8 @@ const handleSend = async () => {
   scrollToBottom()
 
   try {
-    await api.chat.stream({ question: q, history }, (event) => {
+    // 服务端会话记忆：只传问题，历史由后端从数据库加载
+    await api.chat.stream({ question: q, session_id: 'default' }, (event) => {
       const last = messages.value[messages.value.length - 1]
       if (event.type === 'tool') {
         last.toolInfo = `已检索营养知识库：${event.query}`
@@ -91,4 +91,18 @@ const handleSend = async () => {
     scrollToBottom()
   }
 }
+
+onMounted(async () => {
+  try {
+    const history = await api.chat.history()
+    messages.value = history.map((m) => ({
+      role: m.role,
+      content: m.content,
+      toolInfo: null
+    }))
+    scrollToBottom()
+  } catch (error) {
+    console.error('加载会话历史失败:', error)
+  }
+})
 </script>

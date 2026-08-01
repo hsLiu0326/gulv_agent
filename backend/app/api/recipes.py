@@ -1,5 +1,6 @@
 """食谱接口模块"""
 import json
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
@@ -13,6 +14,7 @@ from app.models.user import User
 from app.models.recipe import Recipe
 from app.schemas.recipe import RecipeCreate, RecipeResponse, RecipeGenerate
 from app.agents.workflow import NutritionAgentWorkflow
+from app.core.checkpointer import get_workflow_state as load_workflow_state
 
 
 router = APIRouter(prefix="/recipes", tags=["食谱"])
@@ -44,7 +46,8 @@ def generate_recipe(
         result = workflow.run(
             health_report=health_report,
             preferences=preferences,
-            user_info=current_user
+            user_info=current_user,
+            thread_id=generate_data.thread_id,
         )
     except Exception:
         raise HTTPException(
@@ -89,12 +92,14 @@ async def generate_recipe_stream(
     ).all()
 
     workflow = NutritionAgentWorkflow()
+    thread_id = generate_data.thread_id or str(uuid.uuid4())
 
     def event_stream():
         for event in workflow.run_stream(
             health_report=health_report,
             preferences=preferences,
             user_info=current_user,
+            thread_id=thread_id,
         ):
             # 流式结束拿到结果后落库，保证列表可见（用独立会话，避免与请求会话生命周期纠缠）
             if event.get("type") == "result" and event.get("recipe"):
@@ -129,6 +134,18 @@ async def generate_recipe_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+@router.get("/workflow-state/{thread_id}")
+def get_workflow_state(
+    thread_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """查看 LangGraph 工作流检查点状态（thread_id 维度）"""
+    state = load_workflow_state(thread_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="检查点不存在")
+    return state
 
 
 @router.get("/", response_model=List[RecipeResponse])

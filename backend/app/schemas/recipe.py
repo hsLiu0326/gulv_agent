@@ -15,6 +15,7 @@ class RecipeCreate(BaseModel):
 class RecipeGenerate(BaseModel):
     """食谱生成模式"""
     health_report_id: int
+    thread_id: Optional[str] = None
 
 
 class RecipeResponse(BaseModel):

@@ -6,5 +6,6 @@ dist/
 build/
 aa/
 chroma_data/
+checkpoints/
 *.pyc
 .playwright-cli/
